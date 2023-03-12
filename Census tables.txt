@@ -1,0 +1,157 @@
+/* First, create a new CENSUS database. */
+
+/* Create a zip codes table. */
+CREATE OR REPLACE TABLE zip_codes (
+    zip_code varchar(5) NOT NULL,
+    city varchar(1500),
+    county varchar(255),
+    state_code varchar(2),
+    state_name varchar(255),
+    area_land_meters integer,
+    internal_point_lat number(11, 7),
+    internal_point_lon number(11, 7)
+);
+
+
+/* Create the table to store detailed census data. */
+CREATE OR REPLACE TABLE census_by_zip_code (
+    zip_code varchar(5) NOT NULL,
+    reporting_year integer,
+    households integer,
+    population_total integer,
+    population_male integer,
+    population_female integer,
+    median_age numeric(3, 1),
+    housing_units_total integer,
+    housing_units_occupied integer,
+    housing_units_vacant integer,
+    housing_dwellings_1_units_detached integer,
+    housing_dwellings_1_units_attached integer,
+    housing_dwellings_2_units integer,
+    housing_dwellings_3_to_4_units integer,
+    housing_dwellings_5_to_9_units integer,
+    housing_dwellings_10_to_19_units integer,
+    housing_dwellings_20_to_49_units integer,
+    housing_dwellings_50_or_more_units integer,
+    housing_dwelling_mobile_homes integer,
+    male_under_5 integer,
+    male_5_to_9 integer,
+    male_10_to_14 integer,
+    male_15_to_17 integer,
+    male_18_to_19 integer,
+    male_20 integer,
+    male_21 integer,
+    male_22_to_24 integer,
+    male_25_to_29 integer,
+    male_30_to_34 integer,
+    male_35_to_39 integer,
+    male_40_to_44 integer,
+    male_45_to_49 integer,
+    male_50_to_54 integer,
+    male_55_to_59 integer,
+    male_60_to_64 integer,
+    male_65_to_66 integer,
+    male_67_to_69 integer,
+    male_70_to_74 integer,
+    male_75_to_79 integer,
+    male_80_to_84 integer,
+    male_85_and_over integer,
+    female_under_5 integer,
+    female_5_to_9 integer,
+    female_10_to_14 integer,
+    female_15_to_17 integer,
+    female_18_to_19 integer,
+    female_20 integer,
+    female_21 integer,
+    female_22_to_24 integer,
+    female_25_to_29 integer,
+    female_30_to_34 integer,
+    female_35_to_39 integer,
+    female_40_to_44 integer,
+    female_45_to_49 integer,
+    female_50_to_54 integer,
+    female_55_to_59 integer,
+    female_60_to_64 integer,
+    female_65_to_66 integer,
+    female_67_to_69 integer,
+    female_70_to_74 integer,
+    female_75_to_79 integer,
+    female_80_to_84 integer,
+    female_85_and_over integer,
+    children integer,
+    children_in_grades_1_to_4 integer,
+    children_in_grades_5_to_8 integer,
+    children_in_grades_9_to_12 integer,
+    families_with_young_children integer,
+    families_with_young_children_two_parents integer,
+    families_with_young_children_one_parent integer,
+    income_median integer,
+    income_per_capita integer,
+    income_less_10000 integer,
+    income_10000_14999 integer,
+    income_15000_19999 integer,
+    income_20000_24999 integer,
+    income_25000_29999 integer,
+    income_30000_34999 integer,
+    income_35000_39999 integer,
+    income_40000_44999 integer,
+    income_45000_49999 integer,
+    income_50000_59999 integer,
+    income_60000_74999 integer,
+    income_75000_99999 integer,
+    income_100000_124999 integer,
+    income_125000_149999 integer,
+    income_150000_199999 integer,
+    income_200000_or_more integer,
+    gini_index numeric(5, 4),
+    rent_median integer,
+    rent_as_percent_of_income numeric(3, 1),
+    education_high_school_diploma integer,
+    education_associates_degree integer,
+    education_bachelors_degree integer,
+    education_masters_degree integer,
+    occupation_agriculture_forestry_fishing_hunting_mining integer,
+    occupation_arts_entertainment_recreation_accommodation_food integer,
+    occupation_construction integer,
+    occupation_education_health_social integer,
+    occupation_finance_insurance_real_estate integer,
+    occupation_information integer,
+    occupation_manufacturing integer,
+    occupation_other_services_not_public_admin integer,
+    occupation_public_administration integer,
+    occupation_retail_trade integer,
+    occupation_science_management_admin_waste integer,
+    occupation_transportation_warehousing_utilities integer,
+    occupation_wholesale_trade integer
+);
+
+
+/* Create a staging area that points to the S3 bucket. */
+CREATE OR REPLACE STAGE census_results
+    url = 's3://census-results';
+
+
+/* List the files in the staging area (S3). */
+LIST @census_results;
+
+
+/* Define the format of CSV files to be loaded. */
+CREATE OR REPLACE FILE FORMAT csv_format
+  type = csv
+  field_delimiter = ','
+  record_delimiter = '\n'
+  skip_header = 1
+  null_if = ('')
+  field_optionally_enclosed_by = '\042'; 
+
+
+/* Load zip code data. */
+COPY INTO zip_codes
+  FROM @census_results/zip_codes.csv
+  file_format = csv_format;
+
+
+/* Load both census files at the same time. */
+COPY INTO census_by_zip_code
+  FROM @census_results/census_by_zip_code
+  file_format = csv_format;

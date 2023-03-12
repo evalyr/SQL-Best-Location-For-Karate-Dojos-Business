@@ -1,0 +1,540 @@
+#Part1
+-- #1: Count the number of zip codes in each state.
+SELECT
+    state_name,
+    COUNT(zip_code) AS n
+FROM
+    zip_codes
+GROUP BY
+    state_name
+ORDER BY
+    n DESC;
+
+-- #2: Calculate the size of each state.
+SELECT
+    state_name,
+    ROUND(SUM(area_land_meters), 2) AS size
+FROM
+    zip_codes
+GROUP BY
+    state_name
+ORDER BY
+    size DESC;
+    
+-- #3: List all US zip codes and, in a new column, designate whether each zip code is on the west coast or not.
+SELECT
+    zip_code,
+    CASE
+        WHEN zip_code LIKE '9____' THEN 'West'
+        ELSE 'Not West'
+    END AS Zip_Code_Area
+FROM
+    zip_codes;
+    
+-- #4: Calculate the total # of zip codes on the west coast versus the rest of the US and determine the average size of zip codes -- in terms of land meters -- in each area.
+SELECT
+    CASE
+        WHEN zip_code LIKE '9____' THEN 'West'
+        ELSE 'Not West'
+    END AS Zip_Code_Area,
+    COUNT(Zip_Code_Area) AS "# of Zip Codes",
+    ROUND(AVG(area_land_meters), 2) AS "Avg Zip Code Size"
+FROM
+    zip_codes
+GROUP BY
+    Zip_Code_Area;
+    
+-- #5: List zip codes along with their size (meters). Then, in another column, categorize each zip code by its relative size.
+SELECT
+    zip_code,
+    area_land_meters,
+    CASE
+        WHEN area_land_meters > 100000000 THEN 'Large'
+        WHEN area_land_meters < 50000000 THEN 'Small'
+        ELSE 'Medium'
+    END AS Size_Category
+FROM
+    zip_codes
+ORDER BY
+    area_land_meters;
+    
+-- #6: Then, create a new query to count the number of zip codes in each of these size categories.
+SELECT
+    CASE
+        WHEN area_land_meters > 100000000 THEN 'Large'
+        WHEN area_land_meters < 50000000 THEN 'Small'
+        ELSE 'Medium'
+    END AS Size_Category,
+    COUNT(zip_code) AS n
+FROM
+    zip_codes
+GROUP BY
+    Size_Category;
+    
+-- #7: Sum the total population for each county in 2018.
+SELECT
+    z.state_name,
+    z.county,
+    SUM(c.population_total) AS "Total Population"
+FROM
+    census_by_zip_code c
+    LEFT JOIN zip_codes z USING (zip_code)
+WHERE
+    c.reporting_year = 2018
+GROUP BY
+    z.state_name,
+    z.county
+ORDER BY
+    z.state_name,
+    z.county;
+    
+-- #8: Sum the total housing units and vacant housing units by the city in 2018.
+SELECT
+    z.state_name,
+    z.city,
+    SUM(c.housing_units_total) AS "Total Housing Units",
+    SUM(c.housing_units_vacant) AS "Total Vacant Housing Units"
+FROM
+    census_by_zip_code c
+    LEFT JOIN zip_codes z USING (zip_code)
+WHERE
+    c.reporting_year = 2018
+GROUP BY
+    z.state_name,
+    z.city
+ORDER BY
+    z.state_name,
+    z.city;
+
+#Part2
+-- #1:  Calculate the total population by reporting year.  Then, order the results by year, so the most recent year is first.
+SELECT
+    reporting_year,
+    SUM(population_total) AS pop
+FROM
+    census_by_zip_code
+GROUP BY
+    reporting_year
+ORDER BY
+    reporting_year DESC;
+    
+-- #2:  List the top 5 counties with the most zip codes.
+SELECT
+    state_name,
+    county,
+    COUNT(*) AS n
+FROM
+    zip_codes
+WHERE
+    county IS NOT NULL
+GROUP BY
+    state_name,
+    county
+ORDER BY
+    n DESC;
+    
+-- #3:  List all zip codes, and in a new column, categorize those zip codes based on their median age in 2018.
+SELECT
+    zip_code,
+    median_age,
+    CASE
+        WHEN population_total < 150 THEN 'unable to calculte'
+        WHEN median_age <= 35 THEN 'young adults'
+        WHEN median_age > 55 THEN 'older adults'
+        ELSE 'middle-aged adults'
+    END AS age_category
+FROM
+    census_by_zip_code
+WHERE
+    reporting_year = 2018
+ORDER BY
+    zip_code;
+    
+-- #4:  Count the number of zip codes in each of the previously-defined age categories.
+SELECT
+    CASE
+        WHEN population_total < 150 THEN 'unable to calculate'
+        WHEN median_age <= 35 THEN 'young adults'
+        WHEN median_age > 55 THEN 'older adults'
+        ELSE 'middle-aged adults'
+    END AS age_category,
+    COUNT(zip_code) AS "# of zip codes"
+FROM
+    census_by_zip_code
+WHERE
+    reporting_year = 2018
+GROUP BY
+    age_category;
+    
+-- #5:  List all zip codes along with a column that classifies their gender distribution in 2018.
+SELECT
+    zip_code,
+    (population_female / population_total) AS "gender_distribution",
+    CASE
+        WHEN (population_female / population_total) > 0.60 THEN 'predominantly female'
+        WHEN (population_female / population_total) < 0.40 THEN 'predominantly male'
+        ELSE 'evenly distribution'
+    END AS gender_distribution_classification
+FROM
+    census_by_zip_code
+WHERE
+    reporting_year = 2018
+    AND population_total >= 1000
+ORDER BY
+    zip_code;
+    
+-- #6:  Sum the children in grades 1-8 by state and county in 2018.
+SELECT
+    z.state_name,
+    z.county,
+    (
+        SUM(c.children_in_grades_1_to_4) + SUM(c.children_in_grades_5_to_8)
+    ) AS "children_in_grade_1-8"
+FROM
+    census_by_zip_code c
+    INNER JOIN zip_codes z USING (zip_code)
+WHERE
+    c.reporting_year = 2018
+GROUP BY
+    z.county,
+    z.state_name
+HAVING
+    (
+        SUM(c.children_in_grades_1_to_4) + SUM(c.children_in_grades_5_to_8)
+    ) >= 100000
+ORDER BY
+    z.state_name,
+    z.county;
+--
+SELECT
+    z.county,
+    SUM(children_in_grades_1_to_4),
+    SUM(children_in_grades_5_to_8)
+FROM
+    census_by_zip_code c
+    INNER JOIN zip_codes z USING (zip_code)
+WHERE
+    c.reporting_year = 2018
+    AND z.state_name = 'Arizona'
+GROUP BY
+    z.county
+ORDER BY
+    z.county;
+
+#Part3
+-- Q1 what's the occupancy of each zip code
+SELECT
+    zip_code,
+    housing_units_total,
+    (housing_units_occupied / housing_units_total) AS occupancy_rating
+FROM
+    census_by_zip_code
+WHERE
+    reporting_year = 2018
+    AND housing_units_total > 0
+ORDER BY
+    occupancy_rating DESC;
+    
+-- Q1-1 unit at least 10000
+SELECT
+    zip_code,
+    housing_units_total,
+    (housing_units_occupied / housing_units_total) AS occupancy_rating
+FROM
+    census_by_zip_code
+WHERE
+    reporting_year = 2018
+    AND housing_units_total > 10000
+ORDER BY
+    occupancy_rating DESC;
+    
+-- Q2 Categorize occupancy at threshold 0.95
+SELECT
+    zip_code,
+    housing_units_total,
+    ROUND((housing_units_occupied / housing_units_total), 2) AS occupancy_rating,
+    CASE
+        WHEN occupancy_rating > 0.95 THEN 'High occupancy'
+        ELSE 'Low occupancy'
+    END AS occupancy_category
+FROM
+    census_by_zip_code
+WHERE
+    reporting_year = 2018
+    AND housing_units_total >= 10000
+ORDER BY
+    occupancy_rating DESC;
+    
+-- Q2 how many ppl living in each zip code in Idaho
+SELECT
+    zip_code,
+    population_total
+FROM
+    census_by_zip_code
+WHERE
+    zip_code IN (
+        SELECT
+            zip_code
+        FROM
+            zip_codes
+        WHERE
+            state_name LIKE 'Idaho'
+    )
+    AND reporting_year = '2018'
+ORDER BY
+    population_total DESC;
+    
+-- Q2-1 how many ppl living in each zip code in Idaho, pop > 1000
+SELECT
+    zip_code,
+    population_total
+FROM
+    census_by_zip_code
+WHERE
+    zip_code IN (
+        SELECT
+            zip_code
+        FROM
+            zip_codes
+        WHERE
+            state_code = 'ID'
+    )
+    AND reporting_year = '2018'
+    AND population_total > 1000
+ORDER BY
+    population_total DESC;
+    
+-- Q3 how many grade kids are in Omaha, Nebraska?
+SELECT
+    zip_code,
+    (
+        SUM(children_in_grades_1_to_4) + SUM(children_in_grades_5_to_8) + SUM(children_in_grades_9_to_12)
+    ) AS kid_in_all_grade
+FROM
+    census_by_zip_code
+WHERE
+    zip_code IN (
+        SELECT
+            zip_code
+        FROM
+            zip_codes
+        WHERE
+            city LIKE 'Omaha city'
+    )
+    AND reporting_year = 2018
+GROUP BY
+    zip_code
+ORDER BY
+    kid_in_all_grade DESC;
+    
+-- Q4 what zip codes had the largest growth in IT workers?
+    WITH census_2013 AS (
+        SELECT
+            zip_code,
+            occupation_information AS info_2013
+        FROM
+            census_by_zip_code
+        WHERE
+            reporting_year = 2013
+            AND occupation_information > 0
+    ),
+    census_2018 AS (
+        SELECT
+            zip_code,
+            occupation_information AS info_2018
+        FROM
+            census_by_zip_code
+        WHERE
+            reporting_year = 2018
+            AND occupation_information > 500
+    ),
+    info_growth AS (
+        SELECT
+            census_2018.zip_code,
+            census_2013.info_2013,
+            census_2018.info_2018,
+            (census_2018.info_2018 - census_2013.info_2013) AS growth_num,
+            ROUND(growth_num / (census_2013.info_2013) * 100) AS growth_pct
+        FROM
+            census_2018
+            INNER JOIN census_2013 ON census_2013.zip_code = census_2018.zip_code
+        WHERE
+            growth_pct > 0
+        ORDER BY
+            growth_pct DESC
+    )
+SELECT
+    *
+FROM
+    info_growth;
+
+#Part4
+-- Q1 in west coast cities, what was the % of income spent on rent?
+WITH west_coast_zips AS (
+    SELECT
+        zip_code,
+        rent_as_percent_of_income
+    FROM
+        census_by_zip_code
+    WHERE
+        zip_code LIKE '9____'
+        AND population_total >= 10000
+        AND reporting_year = 2018
+    ORDER BY
+        zip_code
+),
+rent_expense_by_city AS (
+    SELECT
+        z.state_name,
+        z.city,
+        ROUND(AVG(w.rent_as_percent_of_income), 2) AS rent_pct
+    FROM
+        west_coast_zips w
+        INNER JOIN zip_codes z USING (zip_code)
+    GROUP BY
+        z.state_name,
+        z.city
+    HAVING
+        rent_pct IS NOT NULL
+)
+SELECT
+    *
+FROM
+    rent_expense_by_city;
+
+-- Q2 next categorize those %'s for each city. rent > 35% = high, else low
+    WITH west_coast_zips AS (
+        SELECT
+            zip_code,
+            rent_as_percent_of_income
+        FROM
+            census_by_zip_code
+        WHERE
+            zip_code LIKE '9____'
+            AND population_total >= 10000
+            AND reporting_year = 2018
+        ORDER BY
+            zip_code
+    ),
+    rent_expense_by_city AS (
+        SELECT
+            z.state_name,
+            z.city,
+            AVG(w.rent_as_percent_of_income) AS rent_pct
+        FROM
+            west_coast_zips w
+            INNER JOIN zip_codes z USING (zip_code)
+        GROUP BY
+            z.state_name,
+            z.city
+        HAVING
+            rent_pct IS NOT NULL
+    ),
+    final_rent_analysis AS (
+        SELECT
+            state_name,
+            city,
+            rent_pct,
+            CASE
+                WHEN rent_pct > 35 THEN 'High'
+                ELSE 'Low'
+            END AS rent_cat
+        FROM
+            rent_expense_by_city
+        ORDER BY
+            rent_pct DESC
+    )
+SELECT
+    *
+FROM
+    final_rent_analysis;
+
+#Part5
+-- Q1 Identify zip codes with a high percentage of people with advanced degrees.
+SELECT
+    zip_code,
+    (education_masters_degree / population_total) AS advanced_degree_pct,
+    CASE
+        WHEN advanced_degree_pct >= 0.05 THEN 'High'
+        ELSE 'Low'
+    END AS degree_category
+FROM
+    census_by_zip_code
+WHERE
+    reporting_year = 2018
+    AND population_total > 0
+ORDER BY
+    advanced_degree_pct DESC;
+    
+-- Q2 List the zip codes in the following counties and their # of households in 2018 – “Clark County” (NV), “Los Angeles County” (CA), and “Maricopa County” (AZ).
+SELECT
+    zip_code,
+    households
+FROM
+    census_by_zip_code
+WHERE
+    reporting_year = 2018
+    AND zip_code IN (
+        SELECT
+            zip_code
+        FROM
+            zip_codes
+        WHERE
+            (
+                county = 'Clark County'
+                AND state_code = 'NV'
+            )
+            OR (
+                county = 'Los Angeles County'
+                AND state_code = 'CA'
+            )
+            OR (
+                county = 'Maricopa County'
+                AND state_code = 'AZ'
+            )
+    )
+ORDER BY
+    households DESC;
+
+-- Q3 Identify the top 10 zip codes with the most total population growth.
+    WITH census_2013 AS (
+        SELECT
+            zip_code,
+            population_total AS pop_2013
+        FROM
+            census_by_zip_code
+        WHERE
+            reporting_year = 2013
+            AND population_total > 5000
+    ),
+    census_2018 AS (
+        SELECT
+            zip_code,
+            population_total AS pop_2018
+        FROM
+            census_by_zip_code
+        WHERE
+            reporting_year = 2018
+            AND population_total > 0
+    ),
+    pop_growth AS (
+        SELECT
+            census_2018.zip_code,
+            census_2013.pop_2013,
+            census_2018.pop_2018,
+            (census_2018.pop_2018 - census_2013.pop_2013) AS growth_num,
+            ROUND(growth_num / (census_2013.pop_2013) * 100) AS growth_pct
+        FROM
+            census_2018
+            INNER JOIN census_2013 USING (zip_code)
+        WHERE
+            growth_pct > 0
+        ORDER BY
+            growth_pct DESC
+    )
+SELECT
+    *
+FROM
+    pop_growth
+LIMIT
+    10;
